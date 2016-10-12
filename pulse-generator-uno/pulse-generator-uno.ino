@@ -1,17 +1,17 @@
 int nPulse = 200;
 unsigned long Hz = 2;
 unsigned long pulseDuration = 1000; // in microseconds
-int iPulse = 0;
+unsigned long duration[2] = {pulseDuration, 1000000/Hz-pulseDuration};
 
+int iPulse = 0;
 unsigned long times = 0;
 unsigned long timeStart = 0;
-unsigned long duration[2] = {pulseDuration, 1000000/Hz-pulseDuration};
 
 int state = 9;
 int select = 0;
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(115200);
 
     // Pin setup
     DDRB = B00111111;
@@ -32,15 +32,49 @@ void setup() {
 }
 
 void loop() {
-    if (state==9) {
-        if (Serial.available() > 0) {
+    if (state < 9) {
+        times = micros();
+
+        if (times >= timeStart+duration[state]) {
+            timeStart = times;
+
+            if (state==0) {
+                PORTB &= B11000000;
+                if (iPulse < nPulse) {
+                    state = 1;  
+                }                    
+                else {
+                    state = 9;
+                    iPulse = 0;
+                    Serial.println("End");
+                    Serial.println("");
+                    Serial.println("s: start, h: Hz, n: pulse number, p: pulse duration, e: termination");
+                    Serial.println("");
+                    Serial.print("nPulse = ");
+                    Serial.print(nPulse);
+                    Serial.print(", Hz = ");
+                    Serial.print(Hz);
+                    Serial.print(", Pulse duration = ");
+                    Serial.print(pulseDuration);
+                    Serial.println(" (us)");
+                }
+            }
+            else if (state==1) {
+                PORTB |= B00111111;
+                ++iPulse;
+                state = 0;
+            }
+        }
+        else if (Serial.available() > 0) {
             select = Serial.read();
 
-            if (select == 's') {
-                nPulse = Serial.parseInt();
-                if (nPulse <=0) {
-                    nPulse = 200;
-                }
+            if (select == 'e') {
+                state = 9;
+                iPulse = 0;
+                Serial.println("End");
+                Serial.println("");
+                Serial.println("s: start, h: Hz, n: pulse number, p: pulse duration, e: termination");
+                Serial.println("");
                 Serial.print("nPulse = ");
                 Serial.print(nPulse);
                 Serial.print(", Hz = ");
@@ -48,8 +82,27 @@ void loop() {
                 Serial.print(", Pulse duration = ");
                 Serial.print(pulseDuration);
                 Serial.println(" (us)");
+            }
+        }
+    }
+    
+    else if (state==9) {
+        if (Serial.available() > 0) {
+            select = Serial.read();
+
+            if (select == 's') {
+                duration[0] = pulseDuration;
+                duration[1] = 1000000/Hz-pulseDuration;
+                Serial.print("nPulse = ");
+                Serial.print(nPulse);
+                Serial.print(", Hz = ");
+                Serial.print(Hz);
+                Serial.print(", Pulse duration = ");
+                Serial.print(duration[0]);
+                Serial.println(" (us)");
                 Serial.println("");
                 Serial.println("Start");
+
                 state = 1;
             }
 
@@ -83,7 +136,7 @@ void loop() {
 
             else if (select == 'p') {
                 pulseDuration = Serial.parseInt();
-                if (pulseDuration <= 0) {
+                if (pulseDuration <= 0 | 1000000/Hz-pulseDuration < 0) {
                     pulseDuration = 1000;
                 }
                 Serial.print("nPulse = ");
@@ -105,64 +158,8 @@ void loop() {
                 Serial.print(", Pulse duration = ");
                 Serial.print(pulseDuration);
                 Serial.println(" (us)");
-                Serial.println("");
             }
             
-        }
-    }
-
-    if (state < 9) {
-        times = micros();
-
-        if (times >= timeStart+duration[state]) {
-            timeStart = times;
-
-            if (state==0) {
-                PORTB &= B11000000;
-                if (iPulse < nPulse) {
-                    state = 1;  
-                }                    
-                else {
-                    state = 9;
-                    iPulse = 0;
-                    Serial.println("End");
-                    Serial.println("");
-                    Serial.println("s: start, h: Hz, n: pulse number, p: pulse duration, e: termination");
-                    Serial.println("");
-                    Serial.print("nPulse = ");
-                    Serial.print(nPulse);
-                    Serial.print(", Hz = ");
-                    Serial.print(Hz);
-                    Serial.print(", Pulse duration = ");
-                    Serial.print(pulseDuration);
-                    Serial.println(" (us)");
-                }
-            }
-            else if (state==1) {
-                PORTB |= B00111111;
-                ++iPulse;
-                state = 0;
-                Serial.println(iPulse);
-            }
-        }
-        else if (Serial.available() > 0) {
-            select = Serial.read();
-
-            if (select == 'e') {
-                state = 9;
-                iPulse = 0;
-                Serial.println("End");
-                Serial.println("");
-                Serial.println("s: start, h: Hz, n: pulse number, p: pulse duration, e: termination");
-                Serial.println("");
-                Serial.print("nPulse = ");
-                Serial.print(nPulse);
-                Serial.print(", Hz = ");
-                Serial.print(Hz);
-                Serial.print(", Pulse duration = ");
-                Serial.print(pulseDuration);
-                Serial.println(" (us)");
-            }
         }
     }
 }
